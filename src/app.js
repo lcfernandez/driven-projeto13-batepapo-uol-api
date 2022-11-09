@@ -36,4 +36,4 @@ mongoClient.connect().then(() => {
 
 
 // starts the server
-app.listen(5000, () => console.log(`Server running in port: 5000`));
+app.listen(process.env.PORT, () => console.log(`Server running in port: ${process.env.PORT}`));
