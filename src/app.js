@@ -32,6 +32,31 @@ mongoClient
 
 
 // GET functions
+app.get("/messages", (req, res) => {
+    const { limit } = req.query;
+    const { user } = req.headers;
+
+    db
+        .collection("messages")
+        .find()
+        .toArray()
+        .then(resDB => {
+            res.send(
+                resDB
+                    .filter(message => {
+                        if (
+                            message.type === "status" || message.type === "message" ||
+                            (message.type === "private_message" && (message.from === user || message.to === user))
+                        ) {
+                            return message;
+                        }
+                    })
+                    .slice(-limit)
+            )
+        })
+        .catch(err => res.status(500).send(err));
+});
+
 app.get("/participants", (req, res) => {
     db
         .collection("participants")
@@ -57,7 +82,7 @@ app.post("/messages", (req, res) => {
     if (
         !text || !to || !type || !from ||
         typeof text !== "string" || typeof to !== "string" || typeof type !== "string" ||
-        !text.length || !to.length || (type !== "message" && type !== "provate_message")
+        !text.length || !to.length || (type !== "message" && type !== "private_message")
     ) {
         return res.sendStatus(422);
     }
