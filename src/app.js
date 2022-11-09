@@ -50,6 +50,43 @@ app.get("/participants", (req, res) => {
 });
 
 // POST functions
+app.post("/messages", (req, res) => {
+    const { text, to, type } = req.body;
+    const from = req.headers.user;
+
+    if (
+        !text || !to || !type || !from ||
+        typeof text !== "string" || typeof to !== "string" || typeof type !== "string" ||
+        !text.length || !to.length || (type !== "message" && type !== "provate_message")
+    ) {
+        return res.sendStatus(422);
+    }
+
+    db
+        .collection("participants")
+        .findOne({name: from})
+        .then(resDB => {
+            if (resDB) {
+                db
+                    .collection("messages")
+                    .insertOne(
+                        {
+                            from,
+                            to,
+                            text,
+                            type,
+                            time: dayjs().format("HH:mm:ss")
+                        }
+                    );
+
+                res.sendStatus(201);
+            } else {
+                res.sendStatus(422);
+            }
+        })
+        .catch(err => res.status(500).send(err));
+});
+
 app.post("/participants", (req, res) => {
     const { name } = req.body;
 
