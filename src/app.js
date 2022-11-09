@@ -32,7 +32,22 @@ mongoClient
 
 
 // GET functions
-
+app.get("/participants", (req, res) => {
+    db
+        .collection("participants")
+        .find()
+        .toArray()
+        .then(resDB => {
+            res.send(
+                resDB.map(participant => {
+                    return {
+                        name: participant.name
+                    };
+                })
+            )
+        })
+        .catch(err => res.status(500).res(err));
+});
 
 // POST functions
 app.post("/participants", (req, res) => {
