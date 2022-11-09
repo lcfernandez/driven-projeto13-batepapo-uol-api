@@ -153,6 +153,27 @@ app.post("/participants", (req, res) => {
         .catch(err => res.status(500).send(err));
 });
 
+app.post("/status", (req, res) => {
+    const name = req.headers.user;
+
+    if (!name) {
+        return res.sendStatus(400);
+    }
+
+    db
+        .collection("participants")
+        .findOne({name})
+        .then(resDB => {
+            if (resDB) {
+                // TODO: update lastStatus
+                res.sendStatus(200);
+            } else {
+                res.sendStatus(404);
+            }
+        })
+        .catch(err => res.status(500).send(err));
+});
+
 
 // starts the server
 app.listen(process.env.PORT, () => console.log(`Server running in port: ${process.env.PORT}`));
