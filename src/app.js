@@ -19,10 +19,12 @@ dotenv.config();
 const mongoClient = new MongoClient(process.env.MONGO_URI);
 let db;
 
-mongoClient
-    .connect()
-    .then(() => db = mongoClient.db(process.env.MONGO_DB))
-    .catch(err => console.log(err));
+try {
+    await mongoClient.connect();
+    db = mongoClient.db(process.env.MONGO_DB);
+} catch (err) {
+    console.log(err)
+}
 
 
 // global variables
@@ -32,50 +34,48 @@ mongoClient
 
 
 // GET functions
-app.get("/messages", (req, res) => {
+app.get("/messages", async (req, res) => {
     const { limit } = req.query;
     const { user } = req.headers;
 
-    db
-        .collection("messages")
-        .find()
-        .toArray()
-        .then(resDB => {
-            res.send(
-                resDB
-                    .filter(message => {
-                        if (
-                            message.type === "status" || message.type === "message" ||
-                            (message.type === "private_message" && (message.from === user || message.to === user))
-                        ) {
-                            return message;
-                        }
-                    })
-                    .slice(-limit)
-            )
-        })
-        .catch(err => res.status(500).send(err));
+    try {
+        const messages = await db.collection("messages").find().toArray();
+
+        res.send(
+            messages
+                .filter(message => {
+                    if (
+                        message.type === "status" || message.type === "message" ||
+                        (message.type === "private_message" && (message.from === user || message.to === user))
+                    ) {
+                        return message;
+                    }
+                })
+                .slice(-limit)
+        );
+    } catch (err) {
+        res.status(500).send(err);
+    }
 });
 
-app.get("/participants", (req, res) => {
-    db
-        .collection("participants")
-        .find()
-        .toArray()
-        .then(resDB => {
-            res.send(
-                resDB.map(participant => {
-                    return {
-                        name: participant.name
-                    };
-                })
-            )
-        })
-        .catch(err => res.status(500).res(err));
+app.get("/participants", async (req, res) => {
+    try {
+        const participants = await db.collection("participants").find().toArray();
+
+        res.send(
+            participants.map(participant => {
+                return {
+                    name: participant.name
+                };
+            })
+        );
+    } catch (err) {
+        res.status(500).res(err);
+    }
 });
 
 // POST functions
-app.post("/messages", (req, res) => {
+app.post("/messages", async (req, res) => {
     const { text, to, type } = req.body;
     const from = req.headers.user;
 
@@ -87,91 +87,85 @@ app.post("/messages", (req, res) => {
         return res.sendStatus(422);
     }
 
-    db
-        .collection("participants")
-        .findOne({name: from})
-        .then(resDB => {
-            if (resDB) {
-                db
-                    .collection("messages")
-                    .insertOne(
-                        {
-                            from,
-                            to,
-                            text,
-                            type,
-                            time: dayjs().format("HH:mm:ss")
-                        }
-                    );
+    try {
+        const participant = await db.collection("participants").findOne({name: from});
 
-                res.sendStatus(201);
-            } else {
-                res.sendStatus(422);
-            }
-        })
-        .catch(err => res.status(500).send(err));
+        if (participant) {
+            await db.collection("messages").insertOne(
+                {
+                    from,
+                    to,
+                    text,
+                    type,
+                    time: dayjs().format("HH:mm:ss")
+                }
+            );
+
+            res.sendStatus(201);
+        } else {
+            res.sendStatus(422);
+        }
+    } catch (err) {
+        res.status(500).send(err);
+    }
 });
 
-app.post("/participants", (req, res) => {
+app.post("/participants", async (req, res) => {
     const { name } = req.body;
 
     if (!name || typeof name !== "string" || !name.length) {
         return res.sendStatus(422);
     }
 
-    db
-        .collection("participants")
-        .findOne({name})
-        .then(resDB => {
-            if (!resDB) {
-                db
-                    .collection("participants")
-                    .insertOne(
-                        {
-                            name,
-                            lastStatus: Date.now()
-                        }
-                    );
+    try {
+        const participant = await db.collection("participants").findOne({name});
 
-                db
-                    .collection("messages")
-                    .insertOne(
-                        {
-                            from: name,
-                            to: "Todos",
-                            text: "entra na sala...",
-                            type: "status",
-                            time: dayjs().format("HH:mm:ss")
-                        }
-                    );
+        if (!participant) {
+            await db.collection("participants").insertOne(
+                {
+                    name,
+                    lastStatus: Date.now()
+                }
+            );
 
-                res.sendStatus(201);
-            } else {
-                res.sendStatus(409);
-            }
-        })
-        .catch(err => res.status(500).send(err));
+            await db.collection("messages").insertOne(
+                {
+                    from: name,
+                    to: "Todos",
+                    text: "entra na sala...",
+                    type: "status",
+                    time: dayjs().format("HH:mm:ss")
+                }
+            );
+
+            res.sendStatus(201);
+        } else {
+            res.sendStatus(409);
+        }
+    } catch (err) {
+        res.status(500).send(err);
+    }
 });
 
-app.post("/status", (req, res) => {
+app.post("/status", async (req, res) => {
     const name = req.headers.user;
 
     if (!name) {
         return res.sendStatus(400);
     }
 
-    db
-        .collection("participants")
-        .findOne({name})
-        .then(resDB => {
-            if (resDB) {
-                // TODO: update lastStatus
-                res.sendStatus(200);
-            } else {
-                res.sendStatus(404);
-            }
-        })
-        .catch(err => res.status(500).send(err));
+    try {
+        const participant = db.collection("participants").findOne({name});
+
+        if (participant) {
+            // TODO: update lastStatus
+            res.sendStatus(200);
+        } else {
+            res.sendStatus(404);
+        }
+    } catch (err) {
+        res.status(500).send(err);
+    }
 });
 
 
