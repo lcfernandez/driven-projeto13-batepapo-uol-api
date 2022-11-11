@@ -1,4 +1,4 @@
-import { MongoClient } from "mongodb";
+import { MongoClient, ObjectId } from "mongodb";
 import cors from "cors";
 import dayjs from "dayjs";
 import dotenv from "dotenv";
@@ -158,7 +158,7 @@ app.post("/status", async (req, res) => {
         const participant = await db.collection("participants").findOne({name});
 
         if (participant) {
-            await db.collection("participants").updateOne({name}, {
+            await db.collection("participants").updateOne({_id: participant._id}, {
                     $set: {
                         lastStatus: Date.now()
                     }
@@ -170,10 +170,32 @@ app.post("/status", async (req, res) => {
             res.sendStatus(404);
         }
     } catch (err) {
-        console.log(err);
         res.status(500).send(err);
     }
 });
+
+setInterval(async () => {
+    try {
+        const participants = await db.collection("participants").find().toArray();
+
+        participants.forEach(async participant => {
+            if (Date.now() - participant.lastStatus > 10000) {
+                await db.collection("participants").deleteOne({_id: participant._id});
+                await db.collection("messages").insertOne(
+                    {
+                        from: participant.name,
+                        to: "Todos",
+                        text: "sai da sala...",
+                        type: "status",
+                        time: dayjs().format("HH:mm:ss")
+                    }
+                );
+            }
+        });
+    } catch (err) {
+        res.status(500).res(err);
+    }
+}, 15000);
 
 
 // starts the server
