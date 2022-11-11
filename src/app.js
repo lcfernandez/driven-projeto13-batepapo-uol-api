@@ -6,9 +6,20 @@ import express from "express";
 import joi from "joi";
 
 
-const participantSchema = joi.object({
-    name: joi.string().min(1).required()
-});
+// validation schemas
+const messageSchema = joi.object(
+    {
+        text: joi.string().min(1).required(),
+        to: joi.string().min(1).required(),
+        type: joi.string().valid("message", "private_message").required()
+    }
+);
+
+const participantSchema = joi.object(
+    {
+        name: joi.string().min(1).required()
+    }
+);
 
 
 // instance of express
@@ -34,11 +45,13 @@ try {
     console.log(err);
 }
 
+
+// database collections
 const messagesCollection = db.collection("messages");
 const participantsCollection = db.collection("participants");
 
 
-// GET functions
+// messages routes
 app.get("/messages", async (req, res) => {
     const { limit } = req.query;
     const { user } = req.headers;
@@ -64,35 +77,16 @@ app.get("/messages", async (req, res) => {
     }
 });
 
-app.get("/participants", async (req, res) => {
-    try {
-        const participants = await participantsCollection.find().toArray();
-
-        res.send(
-            participants.map(participant => {
-                return {
-                    name: participant.name
-                };
-            })
-        );
-    } catch (err) {
-        console.log(err);
-        res.sendStatus(500);
-    }
-});
-
-// POST functions
 app.post("/messages", async (req, res) => {
-    const { text, to, type } = req.body;
-    const from = req.headers.user;
+    const validation = messageSchema.validate(req.body);
 
-    if (
-        !text || !to || !type || !from ||
-        typeof text !== "string" || typeof to !== "string" || typeof type !== "string" ||
-        !text.length || !to.length || (type !== "message" && type !== "private_message")
-    ) {
-        return res.sendStatus(422);
+    if (validation.error) {
+        return res.status(422).send(
+            validation.error.details.map(detail => detail.message)
+        );
     }
+
+    const from = req.headers.user;
 
     try {
         const participant = await participantsCollection.findOne(
@@ -105,9 +99,7 @@ app.post("/messages", async (req, res) => {
             await messagesCollection.insertOne(
                 {
                     from,
-                    to,
-                    text,
-                    type,
+                    ...req.body,
                     time: dayjs().format("HH:mm:ss")
                 }
             );
@@ -116,6 +108,25 @@ app.post("/messages", async (req, res) => {
         } else {
             res.sendStatus(422);
         }
+    } catch (err) {
+        console.log(err);
+        res.sendStatus(500);
+    }
+});
+
+
+// participants routes
+app.get("/participants", async (req, res) => {
+    try {
+        const participants = await participantsCollection.find().toArray();
+
+        res.send(
+            participants.map(participant => {
+                return {
+                    name: participant.name
+                };
+            })
+        );
     } catch (err) {
         console.log(err);
         res.sendStatus(500);
@@ -164,6 +175,8 @@ app.post("/participants", async (req, res) => {
     }
 });
 
+
+// status route
 app.post("/status", async (req, res) => {
     const name = req.headers.user;
 
@@ -195,7 +208,7 @@ app.post("/status", async (req, res) => {
 });
 
 
-// app's behavior
+// routine
 setInterval(async () => {
     try {
         const participants = await participantsCollection.find().toArray();
