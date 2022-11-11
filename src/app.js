@@ -3,6 +3,12 @@ import cors from "cors";
 import dayjs from "dayjs";
 import dotenv from "dotenv";
 import express from "express";
+import joi from "joi";
+
+
+const participantSchema = joi.object({
+    name: joi.string().min(1).required()
+});
 
 
 // instance of express
@@ -17,17 +23,19 @@ dotenv.config();
 
 // database connection
 const mongoClient = new MongoClient(process.env.MONGO_URI);
-let db, messagesCollection, participantsCollection;
+let db;
 
 try {
     await mongoClient.connect();
-    db = mongoClient.db(process.env.MONGO_DB);
+    console.log("MongoDB connected");
 
-    messagesCollection = db.collection("messages");
-    participantsCollection = db.collection("participants");
+    db = mongoClient.db(process.env.MONGO_DB);
 } catch (err) {
     console.log(err);
 }
+
+const messagesCollection = db.collection("messages");
+const participantsCollection = db.collection("participants");
 
 
 // GET functions
@@ -87,7 +95,11 @@ app.post("/messages", async (req, res) => {
     }
 
     try {
-        const participant = await participantsCollection.findOne({name: from});
+        const participant = await participantsCollection.findOne(
+            {
+                name: from
+            }
+        );
 
         if (participant) {
             await messagesCollection.insertOne(
@@ -111,11 +123,15 @@ app.post("/messages", async (req, res) => {
 });
 
 app.post("/participants", async (req, res) => {
-    const { name } = req.body;
+    const validation = participantSchema.validate(req.body);
 
-    if (!name || typeof name !== "string" || !name.length) {
-        return res.sendStatus(422);
+    if (validation.error) {
+        return res.status(422).send(
+            validation.error.details.map(detail => detail.message)
+        );
     }
+
+    const { name } = req.body;
 
     try {
         const participant = await participantsCollection.findOne({name});
@@ -159,10 +175,12 @@ app.post("/status", async (req, res) => {
         const participant = await participantsCollection.findOne({name});
 
         if (participant) {
-            await participantsCollection.updateOne({_id: participant._id}, {
-                    $set: {
-                        lastStatus: Date.now()
-                    }
+            await participantsCollection.updateOne(
+                {
+                    _id: participant._id
+                },
+                {
+                    $set: {lastStatus: Date.now()}
                 }
             );
 
@@ -184,7 +202,12 @@ setInterval(async () => {
 
         participants.forEach(async participant => {
             if (Date.now() - participant.lastStatus > 10000) {
-                await participantsCollection.deleteOne({_id: participant._id});
+                await participantsCollection.deleteOne(
+                    {
+                        _id: participant._id
+                    }
+                );
+
                 await messagesCollection.insertOne(
                     {
                         from: participant.name,
