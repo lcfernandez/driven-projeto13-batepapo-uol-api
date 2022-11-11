@@ -155,15 +155,22 @@ app.post("/status", async (req, res) => {
     }
 
     try {
-        const participant = db.collection("participants").findOne({name});
+        const participant = await db.collection("participants").findOne({name});
 
         if (participant) {
-            // TODO: update lastStatus
+            await db.collection("participants").updateOne({name}, {
+                    $set: {
+                        lastStatus: Date.now()
+                    }
+                }
+            );
+
             res.sendStatus(200);
         } else {
             res.sendStatus(404);
         }
     } catch (err) {
+        console.log(err);
         res.status(500).send(err);
     }
 });
