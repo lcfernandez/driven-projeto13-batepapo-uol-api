@@ -29,6 +29,8 @@ npm install
 - Com base no arquivo `.env.example`, crie um arquivo `.env` preenchendo as variáveis de acordo com a sua configuração local.
     - Observação: caso as variáveis `MONGO_DB` e `SERVER_PORT` não sejam especificadas, os valores `test` e `5000`, respectivamente, serão utilizados por padrão.
 
+* Certifique-se de que o servidor do MongoDB esteja rodando.
+
 * Rode o projeto no ambiente de desenvolvimento com o comando:
 
 ```
