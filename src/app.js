@@ -57,7 +57,7 @@ app.delete("/messages/:id", async (req, res) => {
     const { id } = req.params;
 
     if (!user) {
-        return res.sendStatus(400);
+        return res.sendStatus(422);
     }
 
     try {
@@ -143,6 +143,53 @@ app.post("/messages", async (req, res) => {
             res.sendStatus(201);
         } else {
             res.sendStatus(422);
+        }
+    } catch (err) {
+        console.log(err);
+        res.sendStatus(500);
+    }
+});
+
+app.put("/messages/:id", async (req, res) => {
+    const validation = messageSchema.validate(req.body);
+
+    if (validation.error) {
+        return res.status(422).send(
+            validation.error.details.map(detail => detail.message)
+        );
+    }
+
+    const { id } = req.params;
+    const user = req.headers.user;
+
+    if (!user) {
+        return res.sendStatus(422);
+    }
+
+    try {
+        const message = await messagesCollection.findOne(
+            {
+                _id: new ObjectId(id)
+            }
+        );
+
+        if (message) {
+            if (message.from === user) {
+                await messagesCollection.updateOne(
+                    {
+                        _id: message._id
+                    },
+                    {
+                        $set: req.body
+                    }
+                );
+                
+                res.sendStatus(200);
+            } else {
+                res.sendStatus(401);
+            }
+        } else {
+            res.sendStatus(404);
         }
     } catch (err) {
         console.log(err);
