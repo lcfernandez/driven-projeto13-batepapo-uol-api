@@ -322,4 +322,4 @@ setInterval(async () => {
 
 
 // starts the server
-app.listen(process.env.SERVER_PORT, () => console.log(`Server running in port: ${process.env.SERVER_PORT}`));
+app.listen(process.env.SERVER_PORT || 5000, () => console.log(`Server running in port: ${process.env.SERVER_PORT || "5000"}`));

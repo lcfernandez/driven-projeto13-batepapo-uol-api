@@ -27,7 +27,7 @@ npm install
 ```
 
 - Com base no arquivo `.env.example`, crie um arquivo `.env` preenchendo as variáveis de acordo com a sua configuração local.
-    - Observação: caso não seja especificada uma database na variável `MONGO_DB`, por padrão, será usada a database `test`.
+    - Observação: caso as variáveis `MONGO_DB` e `SERVER_PORT` não sejam especificadas, os valores `test` e `5000`, respectivamente, serão utilizados por padrão.
 
 * Rode o projeto no ambiente de desenvolvimento com o comando:
 
