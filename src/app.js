@@ -1,4 +1,4 @@
-import { MongoClient } from "mongodb";
+import { MongoClient, ObjectId } from "mongodb";
 import cors from "cors";
 import dayjs from "dayjs";
 import dotenv from "dotenv";
@@ -52,6 +52,42 @@ const participantsCollection = db.collection("participants");
 
 
 // messages routes
+app.delete("/messages/:id", async (req, res) => {
+    const { user } = req.headers;
+    const { id } = req.params;
+
+    if (!user) {
+        return res.sendStatus(400);
+    }
+
+    try {
+        const message = await messagesCollection.findOne(
+            {
+                _id: new ObjectId(id)
+            }
+        );
+
+        if (message) {
+            if (message.from === user) {
+                await messagesCollection.deleteOne(
+                    {
+                        _id: message._id
+                    }
+                );
+                
+                res.sendStatus(200);
+            } else {
+                res.sendStatus(401);
+            }
+        } else {
+            res.sendStatus(404);
+        }
+    } catch (err) {
+        console.log(err);
+        res.sendStatus(500);
+    }    
+});
+
 app.get("/messages", async (req, res) => {
     const { limit } = req.query;
     const { user } = req.headers;
